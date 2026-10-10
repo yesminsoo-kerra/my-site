@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>섭외 문의함</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700&family=Hahmlet:wght@800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #ECE6E3; --ink: #262327; --plum: #4A2B36; --rose: #A9777D;
+      --rose-deep: #8A5A61; --mist: #D8CDCB; --soft: #6B6266; --card: #F6F2F0;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body {
+      margin: 0; background: var(--paper); color: var(--ink);
+      font-family: "Gothic A1", "Malgun Gothic", sans-serif; font-size: 16px; line-height: 1.6;
+      word-break: keep-all; overflow-wrap: anywhere;
+    }
+    h1, h2 { font-family: "Hahmlet", serif; margin: 0; line-height: 1.2; }
+    :focus-visible { outline: 3px solid var(--rose-deep); outline-offset: 2px; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+
+    .login { max-width: 380px; margin: 12vh auto 0; }
+    .login h1 { font-weight: 900; font-size: 2.2rem; color: var(--plum); margin-bottom: 20px; }
+    .login label { display: block; font-weight: 500; margin-bottom: 6px; }
+    .login input {
+      width: 100%; min-height: 52px; padding: 0 14px; font: inherit;
+      border: 1px solid var(--mist); border-radius: 2px; background: #fff;
+    }
+    .msg { min-height: 1.6em; margin: 10px 0; color: var(--rose-deep); font-weight: 500; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 48px; padding: 0 18px; font: inherit; font-weight: 700;
+      background: var(--plum); color: var(--paper); border: 0; border-radius: 2px; cursor: pointer;
+    }
+    .btn-wide { width: 100%; }
+    .btn-ghost { background: transparent; color: var(--soft); border: 1px solid var(--mist); }
+
+    .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .bar h1 { font-weight: 900; font-size: 1.5rem; color: var(--plum); }
+    .count { margin: 0 0 24px; padding: 20px; background: var(--plum); color: var(--paper); }
+    .count strong { display: block; font-family: "Hahmlet", serif; font-weight: 900; font-size: 3.4rem; line-height: 1; }
+
+    .list { display: grid; gap: 14px; list-style: none; margin: 0; padding: 0; }
+    .card { background: var(--card); padding: 18px; border-left: 4px solid var(--mist); }
+    .card.is-new { border-left-color: var(--rose); }
+    .card h2 { font-size: 1.25rem; font-weight: 800; }
+    .meta { margin: 4px 0 12px; color: var(--soft); font-size: .95rem; }
+    .facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0 0 14px; }
+    .facts dt { color: var(--soft); }
+    .facts dd { margin: 0; }
+    .copy {
+      font: inherit; padding: 0; background: none; border: 0; color: var(--plum);
+      text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-align: left;
+    }
+    .states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .state {
+      min-height: 46px; font: inherit; font-weight: 700; border-radius: 2px; cursor: pointer;
+      background: #fff; color: var(--soft); border: 1px solid var(--mist);
+    }
+    .state[aria-pressed="true"] { background: var(--plum); color: var(--paper); border-color: var(--plum); }
+    .empty { padding: 32px 0; color: var(--soft); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section id="login" class="login" aria-labelledby="login-title">
+      <h1 id="login-title">섭외 문의함</h1>
+      <form id="login-form">
+        <label for="pw">관리자 비밀번호</label>
+        <input id="pw" type="password" autocomplete="current-password" required>
+        <p id="login-msg" class="msg" role="alert"></p>
+        <button class="btn btn-wide" type="submit">들어가기</button>
+      </form>
+    </section>
+
+    <section id="board" hidden aria-labelledby="board-title">
+      <div class="bar">
+        <h1 id="board-title">섭외 문의함</h1>
+        <div>
+          <button id="reload" class="btn btn-ghost" type="button">새로고침</button>
+          <button id="logout" class="btn btn-ghost" type="button">나가기</button>
+        </div>
+      </div>
+      <p class="count">새 문의<strong id="new-count">0</strong></p>
+      <p id="board-msg" class="msg" role="status"></p>
+      <ul id="list" class="list"></ul>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      const KEY = 'admin-pw';
+      const STATUSES = ['새 문의', '연락함', '완료'];
+      const $ = (id) => document.getElementById(id);
+      const getPw = () => { try { return sessionStorage.getItem(KEY) || ''; } catch { return ''; } };
+      const setPw = (v) => { try { v ? sessionStorage.setItem(KEY, v) : sessionStorage.removeItem(KEY); } catch {} };
+
+      const fmt = (iso) => {
+        const d = new Date(iso);
+        return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      };
+      const eventDate = (s) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+        return m ? `${m[1]}년 ${Number(m[2])}월 ${Number(m[3])}일` : (s || '');
+      };
+
+      async function call(method, body) {
+        const r = await fetch('/api/admin', {
+          method,
+          headers: { 'x-admin-password': getPw(), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.status === 401) { const e = new Error(data.error || '비밀번호가 맞지 않아요.'); e.auth = true; throw e; }
+        if (!r.ok) throw new Error(data.error || '불러오지 못했어요.');
+        return data;
+      }
+
+      function showLogin(message) {
+        setPw('');
+        $('board').hidden = true;
+        $('login').hidden = false;
+        $('login-msg').textContent = message || '';
+        $('pw').value = '';
+        $('pw').focus();
+      }
+
+      function render(rows) {
+        $('new-count').textContent = rows.filter((r) => r.status === '새 문의').length;
+        const list = $('list');
+        list.textContent = '';
+        if (!rows.length) {
+          const li = document.createElement('li');
+          li.className = 'empty';
+          li.textContent = '아직 들어온 섭외 문의가 없어요.';
+          list.append(li);
+          return;
+        }
+        for (const row of rows) {
+          const li = document.createElement('li');
+          li.className = 'card' + (row.status === '새 문의' ? ' is-new' : '');
+
+          const h = document.createElement('h2');
+          h.textContent = row.organization || '(기관명 없음)';
+          const meta = document.createElement('p');
+          meta.className = 'meta';
+          meta.textContent = `${fmt(row.created_at)} 접수`;
+
+          const dl = document.createElement('dl');
+          dl.className = 'facts';
+          const add = (k, node) => {
+            const dt = document.createElement('dt'); dt.textContent = k;
+            const dd = document.createElement('dd'); dd.append(node);
+            dl.append(dt, dd);
+          };
+          add('담당자', document.createTextNode(row.name || ''));
+          const copy = document.createElement('button');
+          copy.type = 'button'; copy.className = 'copy'; copy.textContent = row.email || '';
+          copy.addEventListener('click', async () => {
+            try { await navigator.clipboard.writeText(row.email); copy.textContent = '복사했어요'; setTimeout(() => (copy.textContent = row.email), 1200); }
+            catch { const s = getSelection(); const rg = document.createRange(); rg.selectNodeContents(copy); s.removeAllRanges(); s.addRange(rg); }
+          });
+          add('이메일', copy);
+          add('행사 날짜', document.createTextNode(eventDate(row.event_date)));
+          add('행사 지역', document.createTextNode(row.region || ''));
+
+          const states = document.createElement('div');
+          states.className = 'states';
+          states.setAttribute('role', 'group');
+          states.setAttribute('aria-label', '처리 상태');
+          for (const s of STATUSES) {
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'state'; b.textContent = s;
+            b.setAttribute('aria-pressed', String(row.status === s));
+            b.addEventListener('click', async () => {
+              if (row.status === s) return;
+              try { await call('PATCH', { id: row.id, status: s }); await load(); }
+              catch (e) { e.auth ? showLogin(e.message) : ($('board-msg').textContent = e.message); }
+            });
+            states.append(b);
+          }
+          li.append(h, meta, dl, states);
+          list.append(li);
+        }
+      }
+
+      async function load() {
+        $('board-msg').textContent = '';
+        try {
+          const { rows } = await call('GET');
+          $('login').hidden = true;
+          $('board').hidden = false;
+          render(rows);
+        } catch (e) {
+          e.auth ? showLogin(e.message) : ($('board-msg').textContent = e.message, $('login').hidden = true, $('board').hidden = false);
+        }
+      }
+
+      $('login-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        setPw($('pw').value);
+        load();
+      });
+      $('reload').addEventListener('click', load);
+      $('logout').addEventListener('click', () => showLogin(''));
+
+      if (getPw()) load(); else $('pw').focus();
+    })();
+  </script>
+</body>
+</html>
